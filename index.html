@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KellyScout — 实时滚球投注分析系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f7f4;color:#1a1a18;min-height:100vh}
+:root{--g:#16a34a;--r:#dc2626;--y:#d97706;--b:#2563eb;
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f1efe8;
+  --color-text-primary:#1a1a18;
+  --color-text-secondary:#5f5e5a;
+  --color-text-tertiary:#888780;
+  --color-border-tertiary:rgba(0,0,0,0.12);
+  --color-border-secondary:rgba(0,0,0,0.22);
+  --color-border-primary:rgba(0,0,0,0.35);
+  --border-radius-md:8px;
+  --border-radius-lg:12px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --color-background-primary:#1e1e1c;
+    --color-background-secondary:#2c2c2a;
+    --color-text-primary:#e8e6df;
+    --color-text-secondary:#a8a69f;
+    --color-text-tertiary:#6b6a65;
+    --color-border-tertiary:rgba(255,255,255,0.1);
+    --color-border-secondary:rgba(255,255,255,0.18);
+    --color-border-primary:rgba(255,255,255,0.28);
+  }
+  body{background:#141412}
+}
+
+.app{max-width:860px;margin:0 auto;padding:16px}
+
+/* API KEY SETUP */
+.setup-screen{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:28px;max-width:520px;margin:40px auto}
+.setup-title{font-size:18px;font-weight:600;margin-bottom:6px}
+.setup-sub{font-size:13px;color:var(--color-text-secondary);margin-bottom:18px;line-height:1.6}
+.setup-input{width:100%;padding:10px 13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary);margin-bottom:10px}
+.setup-input:focus{outline:none;border-color:var(--color-border-primary)}
+.btn-primary{width:100%;padding:10px;background:var(--color-text-primary);color:var(--color-background-primary);border:none;border-radius:var(--border-radius-md);font-size:14px;cursor:pointer;font-weight:500}
+.btn-primary:hover{opacity:0.85}
+.setup-note{font-size:11px;color:var(--color-text-tertiary);margin-top:12px;line-height:1.6}
+.setup-steps{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:13px;margin-bottom:16px;font-size:12px;color:var(--color-text-secondary);line-height:1.9}
+.setup-steps strong{color:var(--color-text-primary)}
+
+/* MAIN APP */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.logo{font-size:18px;font-weight:600}.logo span{color:var(--g)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--r);animation:blink 1s infinite;display:inline-block;margin-right:5px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.btn-sm{font-size:12px;padding:5px 11px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);cursor:pointer}
+.btn-sm:hover{background:var(--color-background-secondary)}
+.btn-logout{font-size:11px;padding:5px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-tertiary);cursor:pointer}
+
+/* SETTINGS */
+.settings{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:11px 13px;margin-bottom:13px}
+.settings-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ctrl{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary)}
+select,input[type=number]{font-size:12px;padding:4px 8px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.formula-note{font-size:10px;color:var(--color-text-tertiary);margin-top:7px;line-height:1.5}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:13px}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 11px}
+.stat .lbl{font-size:10px;color:var(--color-text-secondary);margin-bottom:3px}
+.stat .val{font-size:20px;font-weight:500}
+.stat .sub{font-size:10px;color:var(--color-text-tertiary);margin-top:2px}
+
+/* API STATUS */
+.api-status{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--color-text-secondary);margin-bottom:11px;padding:7px 11px;background:var(--color-background-secondary);border-radius:var(--border-radius-md)}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ok{background:#16a34a}.err{background:#dc2626}.loading{background:#d97706;animation:blink .6s infinite}
+
+/* TABS */
+.tab-row{display:flex;margin-bottom:12px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden}
+.tab{flex:1;padding:7px;text-align:center;font-size:12px;cursor:pointer;background:var(--color-background-primary);color:var(--color-text-secondary);border:none;transition:.15s}
+.tab.active{background:var(--color-text-primary);color:var(--color-background-primary)}
+
+/* LEAGUE FILTER */
+.league-filter{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.league-btn{font-size:11px;padding:3px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:10px;background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;transition:.15s}
+.league-btn.region-btn{font-weight:500;background:var(--color-background-secondary)}
+.league-btn.active{background:var(--color-text-primary);color:var(--color-background-primary);border-color:transparent}
+
+/* MATCH CARD */
+.match-card{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;overflow:hidden;background:var(--color-background-primary)}
+.match-card.alert{border:1.5px solid #fbbf24}
+.match-card.strong{border:2px solid #16a34a}
+.match-header{display:grid;grid-template-columns:1fr auto;gap:12px;padding:11px 13px;background:var(--color-background-secondary);cursor:pointer;align-items:center}
+.league-tag{font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px}
+.teams{font-size:14px;font-weight:500}
+.match-meta{font-size:11px;color:var(--color-text-secondary);margin-top:3px}
+.score-box{text-align:center}
+.badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:500;margin-left:6px}
+.badge-g{background:#dcfce7;color:#166534}
+.badge-y{background:#fef9c3;color:#854d0e}
+
+/* ALERT BOX */
+.alert-box{padding:9px 12px;border-radius:var(--border-radius-md);margin-bottom:10px;border-left:3px solid}
+.alert-box.warn{background:#fffbeb;border-color:#f59e0b}
+.alert-box.good{background:#f0fdf4;border-color:#16a34a}
+.ab-title{font-size:12px;font-weight:600;margin-bottom:3px}
+.ab-body{font-size:11px;color:var(--color-text-secondary);line-height:1.5}
+
+/* ODDS / PROB */
+.odds-grid,.prob-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px}
+.match-body{padding:11px 13px}
+.odd-cell,.prob-cell{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:8px;text-align:center;position:relative}
+.odd-cell.best{border-color:#16a34a;border-width:1.5px}
+.prob-cell{background:var(--color-background-secondary);border:none}
+.oc-label,.pc-label{font-size:10px;color:var(--color-text-tertiary)}
+.oc-odds{font-size:17px;font-weight:500;margin:2px 0}
+.oc-prob,.oc-ev,.pc-impl,.pc-kelly{font-size:10px}
+.pc-prob{font-size:14px;font-weight:500;margin:2px 0}
+.pc-impl{color:var(--color-text-secondary)}
+.pc-kelly{color:var(--color-text-tertiary)}
+.pos{color:#16a34a}.neg{color:#dc2626}
+.change-badge{position:absolute;top:4px;right:4px;font-size:9px;padding:1px 4px;border-radius:2px}
+.ch-up{background:#fee2e2;color:#991b1b}
+.ch-dn{background:#dcfce7;color:#166534}
+
+/* KELLY */
+.kelly-section{margin-bottom:8px}
+.kelly-row{margin-bottom:7px}
+.kr-header{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+.kr-label{color:var(--color-text-secondary)}
+.kr-val{font-weight:500}
+.kr-track{height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.kr-fill{height:100%;border-radius:3px;transition:width .5s}
+
+/* DETAIL */
+.detail{display:none;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);margin-top:4px}
+.detail.open{display:block}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.di-label{font-size:10px;color:var(--color-text-tertiary);margin-bottom:2px}
+.di-val{font-size:12px;color:var(--color-text-primary)}
+.expand-btn{width:100%;font-size:11px;color:var(--color-text-tertiary);padding:4px;cursor:pointer;border:none;background:none;margin-top:4px}
+.bookmaker-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.bk-tag{font-size:10px;padding:2px 6px;border:0.5px solid var(--color-border-tertiary);border-radius:3px;color:var(--color-text-secondary)}
+.disclaimer{font-size:10px;color:var(--color-text-tertiary);line-height:1.5;padding:8px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);margin-top:8px}
+.empty{text-align:center;padding:50px 20px;color:var(--color-text-tertiary);font-size:13px;line-height:2.2}
+.loader{text-align:center;padding:50px;color:var(--color-text-secondary);font-size:13px}
+.progress{width:60px;height:3px;background:var(--color-border-tertiary);border-radius:2px;margin:12px auto;overflow:hidden}
+.progress-fill{width:30%;height:100%;background:var(--color-text-secondary);border-radius:2px;animation:slide 1s infinite linear}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+.countdown{font-size:11px;color:var(--color-text-tertiary)}
+.err-box{background:#fef2f2;border:0.5px solid #fecaca;border-radius:var(--border-radius-md);padding:12px;margin-bottom:12px;font-size:12px;color:#991b1b;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app" id="root">
+
+  <div id="setup-screen" class="setup-screen">
+    <div class="setup-title">⚽ KellyScout — 实时数据版</div>
+    <div class="setup-sub">接入 The Odds API，覆盖 <strong>13 个联赛</strong>：英超、西甲、德甲、意甲、法甲、欧冠、欧联（欧洲7个）＋ 中超、日职联、韩K联、澳A联、泰超、沙特超（亚洲/大洋洲6个），结合凯利公式识别高价值投注机会。亚洲联赛自动探测可用接口，不同订阅计划覆盖范围有所差异。</div>
+    <div class="setup-steps">
+      <strong>获取免费 API Key（每月500次，无需信用卡）：</strong><br>
+      1. 访问 <strong>the-odds-api.com</strong> → 点击 "Get API Key"<br>
+      2. 填写邮箱注册，秒收确认邮件<br>
+      3. 复制 API Key 粘贴到下方输入框
+    </div>
+    <input class="setup-input" id="api-key-input" type="text" placeholder="粘贴你的 API Key（例：a1b2c3d4e5f6g7h8...）" autocomplete="off">
+    <button class="btn-primary" onclick="startApp()">连接并加载实时数据 →</button>
+    <div class="setup-note">
+      🔒 API Key 仅保存在本地浏览器内存中，不会上传至任何服务器。<br>
+      📊 数据来源：Bet365、William Hill、Pinnacle、Unibet 等10+主流庄家均值赔率。<br>
+      💡 免费计划：500次/月，每次刷新消耗7次（7个联赛各1次）。<br>
+      ec7c9fc265faf005181edec881a518fe
+    </div>
+  </div>
+
+  <div id="main-app" style="display:none">
+    <div class="header">
+      <div>
+        <div class="logo">⚽ Kelly<span>Scout</span> <span style="font-size:11px;color:var(--color-text-tertiary);font-weight:400">实时版</span></div>
+        <div style="font-size:10px;color:var(--color-text-tertiary);margin-top:2px">The Odds API · 凯利公式 · 多庄家均值赔率</div>
+      </div>
+      <div class="hdr-right">
+        <span class="live-dot"></span>
+        <span class="countdown" id="countdown-txt"></span>
+        <button class="btn-sm" onclick="fetchData()">↻ 刷新</button>
+        <button class="btn-logout" onclick="logout()">退出</button>
+      </div>
+    </div>
+
+    <div class="settings">
+      <div class="settings-row">
+        <div class="ctrl">本金(¥) <input type="number" id="bankroll" value="1000" style="width:72px" oninput="reRender()"></div>
+        <div class="ctrl">凯利分数 <select id="kf" onchange="reRender()">
+          <option value="0.25">1/4 Kelly 保守</option>
+          <option value="0.5" selected>1/2 Kelly 推荐</option>
+          <option value="1">全 Kelly 激进</option>
+        </select></div>
+        <div class="ctrl">最低EV <input type="number" id="minev" value="3" style="width:45px"> %</div>
+        <div class="ctrl">赔率涨幅 <input type="number" id="rise" value="6" style="width:45px"> %</div>
+        <div class="ctrl">自动刷新 <select id="autoref" onchange="setAutoRefresh()">
+          <option value="0">关闭</option>
+          <option value="60" selected>60秒</option>
+          <option value="120">2分钟</option>
+          <option value="300">5分钟</option>
+        </select></div>
+      </div>
+      <div class="formula-note">
+        凯利公式 f=(bp-q)/b &nbsp;|&nbsp; 期望值 EV=p(b-1)-(1-p) &nbsp;|&nbsp; 边际优势=(真实概率/市场隐含概率-1)×100% &nbsp;|&nbsp; 真实概率=去除庄家水分后的综合赔率
+      </div>
+    </div>
+
+    <div id="api-status-bar" class="api-status">
+      <div class="status-dot loading" id="status-dot"></div>
+      <span id="status-text">正在连接...</span>
+      <span style="margin-left:auto;font-size:10px" id="quota-text"></span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat"><div class="lbl">加载赛事</div><div class="val" id="s0">--</div><div class="sub">场比赛</div></div>
+      <div class="stat"><div class="lbl">投注机会</div><div class="val" id="s1" style="color:var(--y)">--</div><div class="sub">赔率已上升</div></div>
+      <div class="stat"><div class="lbl">强烈推荐</div><div class="val" id="s2" style="color:var(--g)">--</div><div class="sub">高EV入手点</div></div>
+      <div class="stat"><div class="lbl">平均EV</div><div class="val" id="s3">--</div><div class="sub">期望回报率</div></div>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab active" onclick="setTab('all',this)">全部</button>
+      <button class="tab" onclick="setTab('live',this)">🔴 滚球中</button>
+      <button class="tab" onclick="setTab('alert',this)">⚡ 机会</button>
+      <button class="tab" onclick="setTab('strong',this)">🔥 强推</button>
+    </div>
+
+    <div id="league-filter" class="league-filter"></div>
+    <div id="err-msg"></div>
+    <div id="matches-list"></div>
+  </div>
+</div>
+
+<script>
+let API_KEY='',allMatches=[],prevOdds={},tab='all',selLeague='all',refreshTimer=null,countdownTimer=null,countdownSec=0;
+
+// Each entry: key = The Odds API sport key, name = display name, region = continent tag, altKeys = fallback keys to try if primary 422s
+const SOCCER_SPORTS=[
+  // ── 欧洲 ──
+  {key:'soccer_epl',                    name:'英超',   region:'欧洲'},
+  {key:'soccer_spain_la_liga',          name:'西甲',   region:'欧洲'},
+  {key:'soccer_germany_bundesliga',     name:'德甲',   region:'欧洲'},
+  {key:'soccer_italy_serie_a',          name:'意甲',   region:'欧洲'},
+  {key:'soccer_france_ligue_one',       name:'法甲',   region:'欧洲'},
+  {key:'soccer_uefa_champs_league',     name:'欧冠',   region:'欧洲'},
+  {key:'soccer_uefa_europa_league',     name:'欧联',   region:'欧洲'},
+  // ── 亚洲 ──
+  // 中超 — The Odds API key varies; try both known variants
+  {key:'soccer_china_superleague',      name:'中超',   region:'亚洲', altKeys:['soccer_china_super_league','soccer_csl']},
+  // 日职联 J1
+  {key:'soccer_japan_j_league',         name:'日职联', region:'亚洲', altKeys:['soccer_japan_j1_league','soccer_j_league']},
+  // 韩K联赛
+  {key:'soccer_korea_kleague1',         name:'韩K联', region:'亚洲', altKeys:['soccer_korea_k_league','soccer_kleague1']},
+  // 澳A联赛
+  {key:'soccer_australia_aleague',      name:'澳A联', region:'大洋洲', altKeys:['soccer_australia_a_league','soccer_a_league']},
+  // 泰超
+  {key:'soccer_thailand_premier_league',name:'泰超',   region:'亚洲', altKeys:['soccer_thailand_thai_league','soccer_thai_league']},
+  // 沙特超
+  {key:'soccer_saudi_arabias_league',   name:'沙特超', region:'亚洲', altKeys:['soccer_saudi_professional_league','soccer_saudi_league','soccer_spl']},
+];
+
+function startApp(){
+  const key=document.getElementById('api-key-input').value.trim();
+  if(!key||key.length<20){alert('请输入有效的 API Key（通常为32位字符串）');return;}
+  API_KEY=key;
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('main-app').style.display='block';
+  fetchData();setAutoRefresh();
+}
+
+function logout(){
+  API_KEY='';allMatches=[];prevOdds={};
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('setup-screen').style.display='block';
+  document.getElementById('api-key-input').value='';
+  if(refreshTimer)clearInterval(refreshTimer);
+  if(countdownTimer)clearInterval(countdownTimer);
+}
+
+function setStatus(state,msg,quota=''){
+  document.getElementById('status-dot').className='status-dot '+state;
+  document.getElementById('status-text').textContent=msg;
+  document.getElementById('quota-text').textContent=quota;
+}
+
+async function trySportKey(key){
+  const url=`https://api.the-odds-api.com/v4/sports/${key}/odds/?apiKey=${API_KEY}&regions=eu,uk,au&markets=h2h&oddsFormat=decimal&dateFormat=iso`;
+  const res=await fetch(url);
+  if(res.status===401) throw new Error('INVALID_KEY');
+  if(res.status===429) throw new Error('QUOTA_EXCEEDED');
+  if(!res.ok) return null;
+  const data=await res.json();
+  const remaining=res.headers.get('x-requests-remaining')||'';
+  return{data,remaining};
+}
+
+async function fetchData(){
+  setStatus('loading','正在拉取实时赔率...');
+  document.getElementById('err-msg').innerHTML='';
+  document.getElementById('matches-list').innerHTML='<div class="loader">正在加载 13 个联赛数据...<div class="progress"><div class="progress-fill"></div></div><div style="font-size:11px;color:var(--color-text-tertiary);margin-top:8px">亚洲联赛自动探测可用接口</div></div>';
+  const newMatches=[];let totalRemaining='';
+  const loaded=[],notFound=[];
+  for(const sport of SOCCER_SPORTS){
+    const keysToTry=[sport.key,...(sport.altKeys||[])];
+    let found=false;
+    setStatus('loading',`正在加载 ${sport.name}...`,totalRemaining?`剩余额度: ${totalRemaining}次`:'');
+    for(const key of keysToTry){
+      try{
+        const result=await trySportKey(key);
+        if(!result) continue;
+        if(result.remaining) totalRemaining=result.remaining;
+        for(const ev of result.data){const p=processEvent(ev,sport.name,sport.region||'其他');if(p)newMatches.push(p);}
+        loaded.push(sport.name);found=true;break;
+      }catch(e){
+        if(e.message==='INVALID_KEY'){document.getElementById('err-msg').innerHTML='<div class="err-box">❌ API Key 无效，请退出后重新输入。</div>';setStatus('err','API Key 错误');document.getElementById('matches-list').innerHTML='';return;}
+        if(e.message==='QUOTA_EXCEEDED'){document.getElementById('err-msg').innerHTML=`<div class="err-box">⚠ 请求额度已用尽。已加载：${loaded.join('、')}。免费计划500次/月，请明日再试或升级。</div>`;break;}
+        break;
+      }
+    }
+    if(!found) notFound.push(sport.name);
+  }
+  const asianMissing=notFound.filter(n=>['中超','泰超','沙特超','日职联','韩K联','澳A联'].includes(n));
+  if(asianMissing.length>0){
+    document.getElementById('err-msg').innerHTML=
+      `<div class="err-box" style="background:#fffbeb;border-color:#fbbf24;color:#92400e;line-height:1.7">
+        ⚠ 以下联赛未能获取数据（可能赛季未开、或该计划不覆盖）：<strong>${asianMissing.join('、')}</strong>。<br>
+        可访问 <a href="https://api.the-odds-api.com/v4/sports/?apiKey=${API_KEY}&all=true" target="_blank" style="color:#92400e;text-decoration:underline">API sports 列表</a>（不消耗额度）查看你账户支持的所有 key，找到对应联赛后告知即可更新。
+      </div>`;
+  }
+  if(newMatches.length===0&&!document.getElementById('err-msg').querySelector('.err-box[style*="red"]')){
+    setStatus('ok',`已连接 — ${loaded.length}/${SOCCER_SPORTS.length} 个联赛，暂无赛事`,'');
+    document.getElementById('matches-list').innerHTML=
+      `<div class="empty">📭 当前暂无进行中或即将开始的比赛<br>
+      <span style="font-size:11px">成功加载联赛：${loaded.join(' · ')||'无'}</span><br>
+      <span style="font-size:11px;color:var(--color-text-tertiary)">欧洲赛事集中于周末 15:00–22:00（北京时间）｜ 亚洲赛事通常在周末晚间</span></div>`;
+    updateStats([]);renderLeagueFilter([]);return;
+  }
+  prevOdds=buildPrevOddsMap();allMatches=newMatches;
+  const now=new Date(),ts=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  setStatus('ok',`${ts} — ${loaded.length}个联赛 · ${newMatches.length}场赛事`,totalRemaining?`剩余额度: ${totalRemaining}次`:'');
+  renderLeagueFilter(allMatches);reRender();
+}
+
+function buildPrevOddsMap(){const m={};for(const x of allMatches)m[x.id]={h:x.homeOdds,d:x.drawOdds,a:x.awayOdds};return m;}
+
+function processEvent(ev,leagueName,region='其他'){
+  if(!ev.bookmakers||ev.bookmakers.length===0)return null;
+  let hS=0,dS=0,aS=0,cnt=0;const bkNames=[];
+  for(const bk of ev.bookmakers){
+    const h2h=bk.markets?.find(m=>m.key==='h2h');if(!h2h)continue;
+    const home=h2h.outcomes.find(o=>o.name===ev.home_team);
+    const away=h2h.outcomes.find(o=>o.name===ev.away_team);
+    const draw=h2h.outcomes.find(o=>o.name==='Draw');
+    if(home&&away&&draw){hS+=home.price;aS+=away.price;dS+=draw.price;cnt++;bkNames.push(bk.title);}
+  }
+  if(cnt===0)return null;
+  const homeOdds=+(hS/cnt).toFixed(2),drawOdds=+(dS/cnt).toFixed(2),awayOdds=+(aS/cnt).toFixed(2);
+  const rawH=1/homeOdds,rawD=1/drawOdds,rawA=1/awayOdds,margin=rawH+rawD+rawA;
+  const trueH=rawH/margin,trueD=rawD/margin,trueA=rawA/margin;
+  const commenceMs=new Date(ev.commence_time).getTime(),nowMs=Date.now();
+  const isLive=commenceMs<nowMs,minsAgo=isLive?Math.floor((nowMs-commenceMs)/60000):null;
+  const prev=prevOdds[ev.id];
+  function kelly(p,odds){const b=odds-1,q=1-p;return Math.max(0,(b*p-q)/b);}
+  function evf(p,odds){return +(p*(odds-1)-(1-p)).toFixed(4);}
+  function edge(p,odds){return +((p/(1/odds)-1)*100).toFixed(1);}
+  const kH=kelly(trueH,homeOdds),kD=kelly(trueD,drawOdds),kA=kelly(trueA,awayOdds);
+  const evH=evf(trueH,homeOdds),evD=evf(trueD,drawOdds),evA=evf(trueA,awayOdds);
+  const edgeH=edge(trueH,homeOdds),edgeD=edge(trueD,drawOdds),edgeA=edge(trueA,awayOdds);
+  let oddsRisePct=0;
+  if(prev){const favIsHome=trueH>trueA,fc=favIsHome?homeOdds:awayOdds,fp=favIsHome?prev.h:prev.a;if(fp>0)oddsRisePct=+((fc-fp)/fp*100).toFixed(1);}
+  return{id:ev.id,league:leagueName,region,homeTeam:ev.home_team,awayTeam:ev.away_team,commenceTime:ev.commence_time,isLive,minsAgo,homeOdds,drawOdds,awayOdds,prevHomeOdds:prev?.h||0,prevAwayOdds:prev?.a||0,trueH,trueD,trueA,kH,kD,kA,evH,evD,evA,edgeH,edgeD,edgeA,oddsRisePct,bookmakers:bkNames,expanded:allMatches.find(m=>m.id===ev.id)?.expanded||false};
+}
+
+function getKF(){return parseFloat(document.getElementById('kf').value);}
+function getBank(){return parseFloat(document.getElementById('bankroll').value)||1000;}
+function getMinEV(){return parseFloat(document.getElementById('minev').value)||3;}
+function getRise(){return parseFloat(document.getElementById('rise').value)||6;}
+function hasOpportunity(m){return(m.oddsRisePct>=getRise()||Math.max(m.evH,m.evD,m.evA)*100>=getMinEV())&&Math.max(m.evH,m.evD,m.evA)>0;}
+function isStrong(m){return hasOpportunity(m)&&Math.max(m.kH,m.kD,m.kA)*getKF()*getBank()>=30&&Math.max(m.evH,m.evD,m.evA)*100>=6;}
+
+function renderLeagueFilter(matches){
+  const leagues=['all',...new Set(matches.map(m=>m.league))];
+  const regions=['all',...new Set(matches.map(m=>m.region))];
+  // Build grouped filter: region buttons + individual league buttons
+  let html='';
+  // Region shortcuts
+  html+=`<button class="league-btn region-btn ${selLeague==='all'?'active':''}" onclick="setLeague('all',this)">🌍 全部</button>`;
+  for(const r of regions.filter(r=>r!=='all')){
+    const flag=r==='欧洲'?'🇪🇺':r==='亚洲'?'🌏':r==='大洋洲'?'🦘':'🌐';
+    html+=`<button class="league-btn region-btn ${selLeague==='__region__'+r?'active':''}" onclick="setLeagueRegion('${r}',this)">${flag}${r}</button>`;
+  }
+  html+='<span style="width:1px;background:var(--color-border-tertiary);height:16px;display:inline-block;margin:0 4px;vertical-align:middle"></span>';
+  for(const l of leagues.filter(l=>l!=='all')){
+    html+=`<button class="league-btn ${selLeague===l?'active':''}" onclick="setLeague('${l}',this)">${l}</button>`;
+  }
+  document.getElementById('league-filter').innerHTML=html;
+}
+function setLeagueRegion(r,el){selLeague='__region__'+r;document.querySelectorAll('.league-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');reRender();}
+function setLeague(l,el){selLeague=l;document.querySelectorAll('.league-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');reRender();}
+function setTab(t,el){tab=t;document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');reRender();}
+
+function matchInFilter(m){
+  if(selLeague==='all') return true;
+  if(selLeague.startsWith('__region__')) return m.region===selLeague.replace('__region__','');
+  return m.league===selLeague;
+}
+
+function updateStats(filtered){
+  const opps=filtered.filter(hasOpportunity).length,strongs=filtered.filter(isStrong).length;
+  const evs=filtered.map(m=>Math.max(m.evH,m.evD,m.evA)*100).filter(x=>x>0);
+  const avg=evs.length?evs.reduce((a,b)=>a+b,0)/evs.length:0;
+  document.getElementById('s0').textContent=filtered.length;
+  document.getElementById('s1').textContent=opps;
+  document.getElementById('s2').textContent=strongs;
+  document.getElementById('s3').textContent=(avg>0?'+':'')+avg.toFixed(1)+'%';
+}
+
+function reRender(){
+  let list=allMatches.filter(matchInFilter);
+  if(tab==='live')list=list.filter(m=>m.isLive);
+  else if(tab==='alert')list=list.filter(hasOpportunity);
+  else if(tab==='strong')list=list.filter(isStrong);
+  list.sort((a,b)=>{const sa=(isStrong(a)?4:0)+(hasOpportunity(a)?2:0)+(a.isLive?1:0),sb=(isStrong(b)?4:0)+(hasOpportunity(b)?2:0)+(b.isLive?1:0);return sb-sa;});
+  updateStats(allMatches.filter(matchInFilter));
+  const container=document.getElementById('matches-list');
+  if(!list.length){container.innerHTML='<div class="empty">暂无符合条件的比赛<br><span style="font-size:11px">尝试调整筛选条件或切换标签</span></div>';return;}
+  container.innerHTML=list.map(renderMatch).join('');
+}
+
+function renderMatch(m){
+  const kf=getKF(),bank=getBank(),strong=isStrong(m),alert=hasOpportunity(m);
+  const commDt=new Date(m.commenceTime),timeStr=`${String(commDt.getHours()).padStart(2,'0')}:${String(commDt.getMinutes()).padStart(2,'0')}`,dateStr=`${commDt.getMonth()+1}/${commDt.getDate()}`;
+  let alertHtml='';
+  if(alert){
+    const bestEV=Math.max(m.evH,m.evD,m.evA)*100;
+    let rec='';
+    if(m.evH*100>=getMinEV())rec=`推荐主胜 @ ${m.homeOdds}`;
+    else if(m.evA*100>=getMinEV())rec=`推荐客胜 @ ${m.awayOdds}`;
+    else if(m.evD*100>=getMinEV())rec=`推荐平局 @ ${m.drawOdds}`;
+    const riseMsg=m.oddsRisePct>0?`赔率本场已上升 +${m.oddsRisePct}%，`:'';
+    alertHtml=`<div class="alert-box ${strong?'good':'warn'}"><div class="ab-title">${strong?'🔥 强烈推荐入手':'⚡ 投注机会出现'}</div><div class="ab-body">${riseMsg}期望回报 +${bestEV.toFixed(1)}%。${rec}。凯利建议仓位 ¥${(Math.max(m.kH,m.kD,m.kA)*kf*bank).toFixed(0)}。</div></div>`;
+  }
+  function oddsCell(label,odds,trueP,ev){
+    const implP=(1/odds*100).toFixed(0),trueP100=(trueP*100).toFixed(0),evPct=(ev*100).toFixed(1),best=ev>=getMinEV()/100;
+    return`<div class="odd-cell ${best?'best':''}"><div class="oc-label">${label}</div><div class="oc-odds" style="color:${best?'var(--g)':'var(--color-text-primary)'}">${odds}</div><div class="oc-prob">真实 <strong>${trueP100}%</strong> / 隐含 ${implP}%</div><div class="oc-ev ${ev>0?'pos':'neg'}">EV ${evPct>0?'+':''}${evPct}%</div></div>`;
+  }
+  function probCell(label,trueP,odds,kelly){
+    const bet=(kelly*kf*bank).toFixed(0),implP=(1/odds*100).toFixed(1),color=trueP>1/odds?'var(--g)':'var(--color-text-primary)';
+    return`<div class="prob-cell"><div class="pc-label">${label}</div><div class="pc-prob" style="color:${color}">${(trueP*100).toFixed(1)}%</div><div class="pc-impl">市场 ${implP}%</div><div class="pc-kelly">建议 ¥${bet}</div></div>`;
+  }
+  function kellyBar(label,k,ev,color){
+    const pct=Math.min(100,+(k*kf*100).toFixed(1)),bet=(k*kf*bank).toFixed(0),evPct=(ev*100).toFixed(1);
+    return`<div class="kelly-row"><div class="kr-header"><span class="kr-label">${label}</span><span class="kr-val" style="color:${k*kf>0.02?color:'var(--color-text-tertiary)'}">仓位 ${pct}% · ¥${bet} · EV ${evPct>0?'+':''}${evPct}%</span></div><div class="kr-track"><div class="kr-fill" style="width:${pct}%;background:${k*kf>0.01?color:'var(--color-border-tertiary)'}"></div></div></div>`;
+  }
+  const exp=m.expanded;
+  return`<div class="match-card ${strong?'strong':alert?'alert':''}" id="mc-${m.id}">
+    <div class="match-header" onclick="toggleExpand('${m.id}')">
+      <div>
+        <div class="league-tag">${m.region ? `<span style="color:var(--color-text-tertiary)">${m.region==='欧洲'?'🇪🇺':m.region==='亚洲'?'🌏':m.region==='大洋洲'?'🦘':'🌐'} ${m.region}</span> · ` : ''}${m.league}${strong?' <span class="badge badge-g">🔥强推</span>':alert?' <span class="badge badge-y">⚡机会</span>':''}</div>
+        <div class="teams">${m.homeTeam} <span style="color:var(--color-text-tertiary);font-weight:400">vs</span> ${m.awayTeam}</div>
+        <div class="match-meta">
+          ${m.isLive?`<span style="color:var(--r)">● 滚球中 ~${m.minsAgo}'</span>`:`<span>${dateStr} ${timeStr}</span>`}
+          ${m.oddsRisePct>0?`<span style="color:var(--r);margin-left:8px">赔率 +${m.oddsRisePct}%↑</span>`:''}
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:14px;color:var(--color-text-secondary);font-weight:500">${m.homeOdds} / ${m.drawOdds} / ${m.awayOdds}</div>
+        <div style="font-size:10px;color:var(--color-text-tertiary);text-align:center">主 / 平 / 客</div>
+        <div style="font-size:10px;color:var(--color-text-tertiary);text-align:center;margin-top:2px">${m.bookmakers.length}家庄家均值</div>
+      </div>
+    </div>
+    <div class="match-body">
+      ${alertHtml}
+      <div class="prob-row">${probCell('主胜',m.trueH,m.homeOdds,m.kH)}${probCell('平局',m.trueD,m.drawOdds,m.kD)}${probCell('客胜',m.trueA,m.awayOdds,m.kA)}</div>
+      <div class="odds-grid">${oddsCell('主胜',m.homeOdds,m.trueH,m.evH)}${oddsCell('平局',m.drawOdds,m.trueD,m.evD)}${oddsCell('客胜',m.awayOdds,m.trueA,m.evA)}</div>
+      <div id="detail-${m.id}" class="detail ${exp?'open':''}">
+        <div class="kelly-section">${kellyBar('主胜 Kelly',m.kH,m.evH,'#16a34a')}${kellyBar('平局 Kelly',m.kD,m.evD,'#d97706')}${kellyBar('客胜 Kelly',m.kA,m.evA,'#2563eb')}</div>
+        <div class="detail-grid">
+          <div><div class="di-label">主队盘口边际优势</div><div class="di-val ${m.edgeH>0?'pos':'neg'}">${m.edgeH>0?'+':''}${m.edgeH}%</div></div>
+          <div><div class="di-label">客队盘口边际优势</div><div class="di-val ${m.edgeA>0?'pos':'neg'}">${m.edgeA>0?'+':''}${m.edgeA}%</div></div>
+          <div><div class="di-label">庄家水分估算</div><div class="di-val">${((1/m.homeOdds+1/m.drawOdds+1/m.awayOdds-1)*100).toFixed(1)}%</div></div>
+          <div><div class="di-label">最优凯利仓位</div><div class="di-val">¥${(Math.max(m.kH,m.kD,m.kA)*getKF()*getBank()).toFixed(0)}</div></div>
+        </div>
+        <div class="bookmaker-row">${m.bookmakers.map(b=>`<span class="bk-tag">${b}</span>`).join('')}</div>
+        <div class="disclaimer">⚠ 数据来自 The Odds API，为多家庄家实时赔率均值。真实概率通过去除庄家水分（vig）计算。凯利公式为数学模型参考，不构成任何投注建议。足球比赛结果存在大量随机性，请理性控制仓位，严禁超过凯利推荐量。</div>
+      </div>
+      <button class="expand-btn" onclick="toggleExpand('${m.id}')">${exp?'▲ 收起':'▼ 展开凯利详情'}</button>
+    </div>
+  </div>`;
+}
+
+function toggleExpand(id){const m=allMatches.find(x=>x.id===id);if(m){m.expanded=!m.expanded;reRender();}}
+
+function setAutoRefresh(){
+  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
+  if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null;}
+  const secs=parseInt(document.getElementById('autoref').value);
+  if(!secs){document.getElementById('countdown-txt').textContent='';return;}
+  countdownSec=secs;
+  countdownTimer=setInterval(()=>{
+    countdownSec--;
+    document.getElementById('countdown-txt').textContent=`${countdownSec}s`;
+    if(countdownSec<=0){countdownSec=secs;if(API_KEY)fetchData();}
+  },1000);
+  refreshTimer='active';
+}
+</script>
+</body>
+</html>
